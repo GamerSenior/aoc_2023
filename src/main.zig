@@ -2,6 +2,7 @@ const std = @import("std");
 const testing_allocator = std.testing.allocator;
 
 const Numerals = enum(u8) { one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8, nine = 9 };
+const numerals = [_][]const u8{ "one", "two", "three", "four", "five", "six", "seven", "eight", "nine" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -65,7 +66,7 @@ fn get_total(allocator: std.mem.Allocator, strings: []const []const u8) !i32 {
             try numbers.append(char);
         }
         const first_and_last = get_first_and_last(numbers.items);
-        total += std.fmt.parseInt(i32, first_and_last, 10) catch {
+        total += std.fmt.parseInt(i32, &first_and_last, 10) catch {
             std.debug.print("Parsing error: {s}", .{first_and_last});
             return 0;
         };
@@ -93,20 +94,44 @@ test "validates get_total swiching literals" {
     try std.testing.expectEqual(total, 281);
 }
 
-fn get_first_and_last(string: []const u8) []const u8 {
-    if (string.len == 0) return "";
+fn get_first_and_last(string: []const u8) [2]u8 {
+    if (string.len == 0) return [2]u8{ 0, 0 };
     const first = string[0];
     const last = string[string.len - 1];
-    return &[_]u8{ first, last };
+    return [2]u8{ first, last };
 }
 
 test "validates get first and last" {
     const value = "9abcs8";
-    try std.testing.expectEqualStrings("98", get_first_and_last(value));
+    try std.testing.expectEqualStrings("98", &get_first_and_last(value));
 }
 
 fn switch_numerals(allocator: std.mem.Allocator, string: []const u8) ![]const u8 {
     var result = try allocator.dupe(u8, string);
+
+    // var idx: usize = 0;
+    // var return_value = try allocator.alloc(u8, string.len);
+    // var return_value_idx: usize = 0;
+    // while (idx < string.len) {
+    //     field_for: for (numerals, 0..) |numeral, literal_idx| {
+    //         if (idx + numeral.len > string.len) {
+    //             continue;
+    //         }
+
+    //         return_value_idx += 1;
+    //         if (std.mem.eql(u8, numeral, string[idx..numeral.len])) {
+    //             const number = std.fmt.digitToChar(@truncate(u8, literal_idx + 1), .lower);
+    //             return_value[idx] = number;
+    //             idx += numeral.len;
+    //             break :field_for;
+    //         } else {
+    //             return_value[idx] = string[idx];
+    //             idx += 1;
+    //         }
+    //     }
+    // }
+    // std.debug.print("{s}\n", .{return_value});
+
     inline for (@typeInfo(Numerals).Enum.fields) |field| {
         const numeral = field.name;
         const number = &[_]u8{std.fmt.digitToChar(field.value, .lower)};
