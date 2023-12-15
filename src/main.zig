@@ -55,7 +55,6 @@ fn get_total(allocator: std.mem.Allocator, strings: []const []const u8) !i32 {
     var total: i32 = 0;
     for (strings) |string| {
         const treated_string = try switch_numerals(allocator, string);
-        std.debug.print("treated_string: {s}\n", .{treated_string});
         defer allocator.free(treated_string);
         var numbers = std.ArrayList(u8).init(allocator);
         defer numbers.deinit();
@@ -107,44 +106,37 @@ test "validates get first and last" {
 }
 
 fn switch_numerals(allocator: std.mem.Allocator, string: []const u8) ![]const u8 {
-    var result = try allocator.dupe(u8, string);
+    var idx: usize = 0;
+    var result = try allocator.alloc(u8, string.len);
+    var result_idx: usize = 0;
+    while (idx < string.len) {
+        var switched = false;
+        field_for: for (numerals, 0..) |numeral, numeral_idx| {
+            // std.debug.print("Testing numeral {s}\n", .{numeral});
+            if (idx + numeral.len > string.len) {
+                // std.debug.print("Continue field_for loop\n", .{});
+                continue :field_for;
+            }
 
-    // var idx: usize = 0;
-    // var return_value = try allocator.alloc(u8, string.len);
-    // var return_value_idx: usize = 0;
-    // while (idx < string.len) {
-    //     field_for: for (numerals, 0..) |numeral, literal_idx| {
-    //         if (idx + numeral.len > string.len) {
-    //             continue;
-    //         }
-
-    //         return_value_idx += 1;
-    //         if (std.mem.eql(u8, numeral, string[idx..numeral.len])) {
-    //             const number = std.fmt.digitToChar(@truncate(u8, literal_idx + 1), .lower);
-    //             return_value[idx] = number;
-    //             idx += numeral.len;
-    //             break :field_for;
-    //         } else {
-    //             return_value[idx] = string[idx];
-    //             idx += 1;
-    //         }
-    //     }
-    // }
-    // std.debug.print("{s}\n", .{return_value});
-
-    inline for (@typeInfo(Numerals).Enum.fields) |field| {
-        const numeral = field.name;
-        const number = &[_]u8{std.fmt.digitToChar(field.value, .lower)};
-
-        if (std.mem.indexOf(u8, result, numeral)) |index| {
-            const prefix = result[0..index];
-            const posfix = result[index + numeral.len .. result.len];
-            const new_string = try std.mem.concat(allocator, u8, &[_][]const u8{ prefix, number, posfix });
-            allocator.free(result);
-            result = new_string;
+            if (std.mem.eql(u8, numeral, string[idx .. idx + numeral.len])) {
+                const number = std.fmt.digitToChar(@truncate(u8, numeral_idx + 1), .lower);
+                result[result_idx] = number;
+                result_idx += 1;
+                idx += numeral.len;
+                switched = true;
+                break :field_for;
+            }
         }
+        if (switched) {
+            continue;
+        }
+        result[result_idx] = string[idx];
+        result_idx += 1;
+        idx += 1;
+        // std.debug.print("\\-------------------------------\\\n\n", .{});
     }
-    return result;
+    std.debug.print("{s}\n", .{result[0..result_idx]});
+    return result[0..result_idx];
 }
 
 test "switch numerals with numbers" {
